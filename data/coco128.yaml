@@ -8,9 +8,9 @@
 
 
 # Train/val/test sets as 1) dir: path/to/imgs, 2) file: path/to/imgs.txt, or 3) list: [path/to/imgs1, path/to/imgs2, ..]
-path: C:\Users\Clark\PycharmProjects\yolov5\datasets\coco128\images  # dataset root dir
-train: C:\Users\Clark\PycharmProjects\yolov5\datasets\coco128\images\train2014  # train images (relative to 'path') 128 images
-val: C:\Users\Clark\PycharmProjects\yolov5\datasets\coco128\images\train2014  # val images (relative to 'path') 128 images
+path: C:\Users\Clark\Documents\GitHub\yolov5\datasets\coco128\images  # dataset root dir
+train: C:\Users\Clark\Documents\GitHub\yolov5\datasets\coco128\images\train2014  # train images (relative to 'path') 128 images
+val: C:\Users\Clark\Documents\GitHub\yolov5\datasets\coco128\images\train2014  # val images (relative to 'path') 128 images
 test:  # test images (optional)
 
 # Classes
