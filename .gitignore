@@ -227,3 +227,8 @@ com_crashlytics_export_strings.xml
 crashlytics.properties
 crashlytics-build.properties
 fabric.properties
+yolov5m6.pt
+yolov5s6.pt
+stereo2PCL/yolov5s.pt
+video/right_out.avi
+video/left_out.avi
