@@ -29,6 +29,10 @@ from utils.plots import Annotator, colors
 from utils.torch_utils import select_device, load_classifier, time_sync
 from PIL import Image
 
+camL = cv2.VideoCapture(2 + cv2.CAP_DSHOW)
+camR = cv2.VideoCapture(1 + cv2.CAP_DSHOW)
+
+
 
 def parse_opt():
     parser = argparse.ArgumentParser()
@@ -158,18 +162,8 @@ def run(weights='yolov5s.pt',  # model.pt path(s)
     if webcam:
         view_img = check_imshow()
         cudnn.benchmark = True  # set True to speed up constant image size inference
-        # dataset = LoadStreams(source, img_size=imgsz, stride=stride, auto=pt)
-        # dataset2 = LoadStreams(source2, img_size=imgsz, stride=stride, auto=pt)
-
-        # ====================================================================================================================
-        dataset = cv2.VideoCapture(2 + cv2.CAP_DSHOW)
-        wL = int(dataset.get(cv2.CAP_PROP_FRAME_WIDTH))
-        hL = int(dataset.get(cv2.CAP_PROP_FRAME_HEIGHT))
-
-        dataset2 = cv2.VideoCapture(2 + cv2.CAP_DSHOW)
-        wR = int(dataset.get(cv2.CAP_PROP_FRAME_WIDTH))
-        hR = int(dataset.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        # ===================================================================================================================
+        dataset = LoadStreams(source, img_size=imgsz, stride=stride, auto=pt)
+        dataset2 = LoadStreams(source2, img_size=imgsz, stride=stride, auto=pt)
 
 
         bs = len(dataset)  # batch_size
@@ -273,6 +267,8 @@ def run(weights='yolov5s.pt',  # model.pt path(s)
                     x2 = float(xyxy[2].item())
                     y2 = float(xyxy[3].item())
 
+                    mass_center = np.array([(x1+x2)/2, (y1+y2)/2])
+
                     confidence_score = conf
                     class_index = cls
                     object_name = names[int(cls)]
@@ -281,21 +277,41 @@ def run(weights='yolov5s.pt',  # model.pt path(s)
                           '\tobject=', object_name, '\n\n')
 
                     if (object_name == "apple" and float(confidence_score) >= 0.65):
-                        if x1 >= 0.2 * float(opt.imgsz[0]) and x2 <= float(opt.imgsz[0]) - (0.2 * float(opt.imgsz[0])):
-                            """
-                                os.system("python C:\\Users\\Clark\\Documents\\GitHub\\yolov5\stereo_depth_video.py --calibration_file "
-                                          "C:\\Users\\Clark\\Documents\\GitHub\\yolov5\\configs\\stereo.yml  --left_source 2 "
-                                          "--right_source 1  --pointcloud_dir  "
-                                          "C:\\Users\\Clark\\Documents\\GitHub\\yolov5\\openCVStereo\\stereo2PCL\\output\\")
-                                """
+                        if x1 >= 0.35 * float(opt.imgsz[0]) and x1 <= float(opt.imgsz[0]) - 0.35 * float(opt.imgsz[1]) :
+                            if y1 >= 0.2 * float(opt.imgsz[1] and y1 <= float(opt.imgsz[1]) - 0.2 * float(opt.imgsz[1])):
+
+                                #camL.release()
+                                #camR.release()
+
+                                capture_duration = 5
+                                fourcc = cv2.VideoWriter_fourcc(*'XVID')
+
+                                out_L = cv2.VideoWriter('output_L.avi',fourcc, 20.0, (640,480))
+                                out_R = cv2.VideoWriter('output_R.avi',fourcc, 20.0, (640,480))
+
+                                start_time = time.time()
+                                while (int(time.time() - start_time) < capture_duration):
+                                    ret1, frame_L = camL.read()
+                                    ret2, frame_R = camR.read()
+                                    if ret2 == True:
+                                        out_L.write(frame_L)
+                                        out_R.write(frame_R)
+                                        #cv2.imshow('frame_L', frame_L)
+                                        #cv2.imshow('frame_R', frame_R)
+                                    else:
+                                        break
+                                    out_L.release()
+                                    out_R.release()
+
+                                subprocess.call('stereo_depth_video.py --calibration_file configs/stereo.yml --left_source output_L.avi --right_source '
+                                                'output_R.avi --pointcloud_dir stereo2PCL/output', shell=True)
+
+                                #camL.open(1)
+                                #camR.open(2)
 
 
-                            subprocess.call('stereo_depth_video.py --calibration_file configs/stereo.yml --left_source 1 --right_source 2 '
-                                            '--pointcloud_dir stereo2PCL/output', shell=True)
-
-                            # subprocess.call('stereo_depth_video.py' , shell=True)
-                        else:
-                            pass
+                            else:
+                                pass
 
             # ====================================================================================================================================================
 
@@ -336,18 +352,16 @@ def run(weights='yolov5s.pt',  # model.pt path(s)
 
     print(f'Done. ({time.time() - t0:.3f}s)')
 
-    return x1, y1, x2, y2, confidence_score, class_index, object_name, dataset, dataset2
+    return x1, y1, x2, y2, confidence_score, class_index, object_name, dataset, dataset2, mass_center
 
 
 def main(opt, opt2):
     print(colorstr('detect: ') + ', '.join(f'{k}={v}' for k, v in vars(opt).items()))
     check_requirements(exclude=('tensorboard', 'thop'))
-    x1, y1, x2, y2, confidence_score, class_index, object_name, dataset, dataset2 = run(**vars(opt))
-    print(dataset2)
-
+    x1, y1, x2, y2, confidence_score, class_index, object_name, dataset, dataset2, mass_center = run(**vars(opt))
 
 if __name__ == "__main__":
     opt = parse_opt()
     opt2 = parse_opt_depth()
-
     main(opt, opt2)
+
