@@ -7,6 +7,8 @@ Usage:
 """
 
 import argparse
+import os
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -25,11 +27,56 @@ from utils.general import check_img_size, check_requirements, check_imshow, colo
     apply_classifier, scale_coords, xyxy2xywh, strip_optimizer, set_logging, increment_path, save_one_box
 from utils.plots import Annotator, colors
 from utils.torch_utils import select_device, load_classifier, time_sync
+from PIL import Image
+
+
+def parse_opt():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--weights', nargs='+', type=str, default='best.pt', help='model.pt path(s)')
+    parser.add_argument('--source', type=str, default='2', help='file/dir/URL/glob, 0 for webcam')
+    parser.add_argument('--imgsz', '--img', '--img-size', nargs='+', type=int, default=[640], help='inference size h,w')
+    parser.add_argument('--conf-thres', type=float, default=0.25, help='confidence threshold')
+    parser.add_argument('--iou-thres', type=float, default=0.45, help='NMS IoU threshold')
+    parser.add_argument('--max-det', type=int, default=1000, help='maximum detections per image')
+    parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
+    parser.add_argument('--view-img', action='store_true', help='show results')
+    parser.add_argument('--save-txt', action='store_true', help='save results to *.txt')
+    parser.add_argument('--save-conf', action='store_true', help='save confidences in --save-txt labels')
+    parser.add_argument('--save-crop', action='store_true', help='save cropped prediction boxes')
+    parser.add_argument('--nosave', action='store_true', help='do not save images/videos')
+    parser.add_argument('--classes', nargs='+', type=int, help='filter by class: --class 0, or --class 0 2 3')
+    parser.add_argument('--agnostic-nms', action='store_true', help='class-agnostic NMS')
+    parser.add_argument('--augment', action='store_true', help='augmented inference')
+    parser.add_argument('--visualize', action='store_true', help='visualize features')
+    parser.add_argument('--update', action='store_true', help='update all models')
+    parser.add_argument('--project', default='runs/detect', help='save results to project/name')
+    parser.add_argument('--name', default='exp', help='save results to project/name')
+    parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')
+    parser.add_argument('--line-thickness', default=3, type=int, help='bounding box thickness (pixels)')
+    parser.add_argument('--hide-labels', default=False, action='store_true', help='hide labels')
+    parser.add_argument('--hide-conf', default=False, action='store_true', help='hide confidences')
+    parser.add_argument('--half', action='store_true', help='use FP16 half-precision inference')
+    opt = parser.parse_args()
+    opt.imgsz *= 2 if len(opt.imgsz) == 1 else 1  # expand
+    return opt
+
+
+def parse_opt_depth():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--calibration_file', type=str,
+                        default="C:\\Users\\Clark\\Documents\\GitHub\\yolov5\\openCVStereo\\stereo2PCL\\configs\\stereo.yml")
+    parser.add_argument('--left_source', default="2")
+    parser.add_argument('--right_source', default="1")
+    parser.add_argument('--pointcloud_dir', type=str, default="C:\\Users\\Clark\\Documents\\GitHub\\yolov5\\openCVStereo\\stereo2PCL\\output\\")
+
+    opt2 = parser.parse_args()
+    return opt2
 
 
 @torch.no_grad()
 def run(weights='yolov5s.pt',  # model.pt path(s)
-        source='data/images',  # file/dir/URL/glob, 0 for webcam
+        source='2',  # file/dir/URL/glob, 0 for webcam
+        source2='1',  # file/dir/URL/glob, 0 for webcam
         imgsz=640,  # inference size (pixels)
         conf_thres=0.25,  # confidence threshold
         iou_thres=0.45,  # NMS IOU threshold
@@ -111,7 +158,20 @@ def run(weights='yolov5s.pt',  # model.pt path(s)
     if webcam:
         view_img = check_imshow()
         cudnn.benchmark = True  # set True to speed up constant image size inference
-        dataset = LoadStreams(source, img_size=imgsz, stride=stride, auto=pt)
+        # dataset = LoadStreams(source, img_size=imgsz, stride=stride, auto=pt)
+        # dataset2 = LoadStreams(source2, img_size=imgsz, stride=stride, auto=pt)
+
+        # ====================================================================================================================
+        dataset = cv2.VideoCapture(2 + cv2.CAP_DSHOW)
+        wL = int(dataset.get(cv2.CAP_PROP_FRAME_WIDTH))
+        hL = int(dataset.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+        dataset2 = cv2.VideoCapture(2 + cv2.CAP_DSHOW)
+        wR = int(dataset.get(cv2.CAP_PROP_FRAME_WIDTH))
+        hR = int(dataset.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        # ===================================================================================================================
+
+
         bs = len(dataset)  # batch_size
     else:
         dataset = LoadImages(source, img_size=imgsz, stride=stride, auto=pt)
@@ -207,6 +267,38 @@ def run(weights='yolov5s.pt',  # model.pt path(s)
                         if save_crop:
                             save_one_box(xyxy, imc, file=save_dir / 'crops' / names[c] / f'{p.stem}.jpg', BGR=True)
 
+                    # ====================================================================================================================================================
+                    x1 = float(xyxy[0].item())
+                    y1 = float(xyxy[1].item())
+                    x2 = float(xyxy[2].item())
+                    y2 = float(xyxy[3].item())
+
+                    confidence_score = conf
+                    class_index = cls
+                    object_name = names[int(cls)]
+
+                    print('x1= ', x1, '\ty1= ', y1, '\tx2=  ', x2, '\ty2= ', y2, '\tconfidence=', confidence_score, '\tclass index=', class_index,
+                          '\tobject=', object_name, '\n\n')
+
+                    if (object_name == "apple" and float(confidence_score) >= 0.65):
+                        if x1 >= 0.2 * float(opt.imgsz[0]) and x2 <= float(opt.imgsz[0]) - (0.2 * float(opt.imgsz[0])):
+                            """
+                                os.system("python C:\\Users\\Clark\\Documents\\GitHub\\yolov5\stereo_depth_video.py --calibration_file "
+                                          "C:\\Users\\Clark\\Documents\\GitHub\\yolov5\\configs\\stereo.yml  --left_source 2 "
+                                          "--right_source 1  --pointcloud_dir  "
+                                          "C:\\Users\\Clark\\Documents\\GitHub\\yolov5\\openCVStereo\\stereo2PCL\\output\\")
+                                """
+
+
+                            subprocess.call('stereo_depth_video.py --calibration_file configs/stereo.yml --left_source 1 --right_source 2 '
+                                            '--pointcloud_dir stereo2PCL/output', shell=True)
+
+                            # subprocess.call('stereo_depth_video.py' , shell=True)
+                        else:
+                            pass
+
+            # ====================================================================================================================================================
+
             # Print time (inference + NMS)
             print(f'{s}Done. ({t2 - t1:.3f}s)')
 
@@ -244,44 +336,18 @@ def run(weights='yolov5s.pt',  # model.pt path(s)
 
     print(f'Done. ({time.time() - t0:.3f}s)')
 
-
-def parse_opt():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--weights', nargs='+', type=str, default='yolov5s.pt', help='model.pt path(s)')
-    parser.add_argument('--source', type=str, default='data/images', help='file/dir/URL/glob, 0 for webcam')
-    parser.add_argument('--imgsz', '--img', '--img-size', nargs='+', type=int, default=[640], help='inference size h,w')
-    parser.add_argument('--conf-thres', type=float, default=0.25, help='confidence threshold')
-    parser.add_argument('--iou-thres', type=float, default=0.45, help='NMS IoU threshold')
-    parser.add_argument('--max-det', type=int, default=1000, help='maximum detections per image')
-    parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
-    parser.add_argument('--view-img', action='store_true', help='show results')
-    parser.add_argument('--save-txt', action='store_true', help='save results to *.txt')
-    parser.add_argument('--save-conf', action='store_true', help='save confidences in --save-txt labels')
-    parser.add_argument('--save-crop', action='store_true', help='save cropped prediction boxes')
-    parser.add_argument('--nosave', action='store_true', help='do not save images/videos')
-    parser.add_argument('--classes', nargs='+', type=int, help='filter by class: --class 0, or --class 0 2 3')
-    parser.add_argument('--agnostic-nms', action='store_true', help='class-agnostic NMS')
-    parser.add_argument('--augment', action='store_true', help='augmented inference')
-    parser.add_argument('--visualize', action='store_true', help='visualize features')
-    parser.add_argument('--update', action='store_true', help='update all models')
-    parser.add_argument('--project', default='runs/detect', help='save results to project/name')
-    parser.add_argument('--name', default='exp', help='save results to project/name')
-    parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')
-    parser.add_argument('--line-thickness', default=3, type=int, help='bounding box thickness (pixels)')
-    parser.add_argument('--hide-labels', default=False, action='store_true', help='hide labels')
-    parser.add_argument('--hide-conf', default=False, action='store_true', help='hide confidences')
-    parser.add_argument('--half', action='store_true', help='use FP16 half-precision inference')
-    opt = parser.parse_args()
-    opt.imgsz *= 2 if len(opt.imgsz) == 1 else 1  # expand
-    return opt
+    return x1, y1, x2, y2, confidence_score, class_index, object_name, dataset, dataset2
 
 
-def main(opt):
+def main(opt, opt2):
     print(colorstr('detect: ') + ', '.join(f'{k}={v}' for k, v in vars(opt).items()))
     check_requirements(exclude=('tensorboard', 'thop'))
-    run(**vars(opt))
+    x1, y1, x2, y2, confidence_score, class_index, object_name, dataset, dataset2 = run(**vars(opt))
+    print(dataset2)
 
 
 if __name__ == "__main__":
     opt = parse_opt()
-    main(opt)
+    opt2 = parse_opt_depth()
+
+    main(opt, opt2)
