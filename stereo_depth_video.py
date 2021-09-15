@@ -14,17 +14,13 @@ import detect
 def pars():
     # Args handling -> check help parameters to understand
     parser2 = argparse.ArgumentParser(description='Camera calibration')
-    parser2.add_argument('--calibration_file', type=str, required=True, help='Path to the stereo calibration file',
-                         default='C:\\Users\\Clark\\Documents\\GitHub\\yolov5\\stereo2PCL\\configs\\stereo.yml')
-    parser2.add_argument('--left_source', type=str, required=True, help='Left image',
-                         default='2')
-    parser2.add_argument('--right_source', type=str, required=True, help='Right image',
-                         default='1')
-    parser2.add_argument('--pointcloud_dir', type=str, required=True, help=' directory path to save pointcloud',
-                         default='C:\\Users\\Clark\\Documents\\GitHub\\yolov5\\stereo2PCL\\output\\')
-
-    parser2 = parser2.parse_args()
-    return parser2
+    parser2.add_argument('--calibration_file', type=str, default='C:\\Users\\Clark\\Documents\\GitHub\\yolov5\\configs\\stereo.yml',
+                         help='Path to the stereo calibration file', )
+    parser2.add_argument('--left_source', type=str, default='2', help='Left image')
+    parser2.add_argument('--right_source', type=str, default='1', help='Right image')
+    parser2.add_argument('--pointcloud_dir', type=str,  default='C:\\Users\\Clark\\Documents\\GitHub\\yolov5\\stereo2PCL\\output\\',
+                         help=' directory path to save pointcloud')
+    return parser2.parse_args()
 
 
 args = pars()
@@ -160,7 +156,7 @@ def dispar_map(imgL, imgR):
         speckleWindowSize=50,
         speckleRange=32,
         preFilterCap=63,
-        mode=cv2.STEREO_SGBM_MODE_SGBM_3WAY
+        mode = cv2.STEREO_SGBM_MODE_SGBM_3WAY
     )
 
     right_matcher = cv2.ximgproc.createRightMatcher(left_matcher)
@@ -188,6 +184,7 @@ def dispar_map(imgL, imgR):
 def show3d(dir):
     pcd = o3d.io.read_point_cloud(dir + 'pointcloud.ply')
     o3d.visualization.draw_geometries([pcd])
+    o3d.visualization.VisualizerWithKeyCallback.update_renderer()
     return
 
 
@@ -217,6 +214,7 @@ def showbyframe(args_s, rightFrame, leftFrame):
     gray_right = cv2.cvtColor(right_rectified, cv2.COLOR_BGR2GRAY)
 
     disparity_map = dispar_map(gray_right, gray_left)  # Get the disparity map builded by SGBM
+    #disparity_map = disparitymap(leftFrame, rightFrame)  # Get the disparity map builded by SAD Block Matching
 
     cv2.imshow('left_Webcam', leftFrame)
     cv2.imshow('right_Webcam', rightFrame)
@@ -224,38 +222,29 @@ def showbyframe(args_s, rightFrame, leftFrame):
     # disparity_MAP2=  disparitymap(leftFrame,rightFrame)  # Get the disparity map builded by SAD Block Matching
 
     path = args_s.pointcloud_dir
+
     cv2.imwrite(os.path.join(path, 'disparity_image.jpg'), disparity_map)
-    cv2.waitKey(1)
+    #cv2.waitKey(1)
 
 
-"""
-    if (cv2.waitKey(33) == ord('a')):
-        coordinates = depth_map(disparity_map, rightFrame)
-        print('\n Creating the output file... \n')
-        create_output(coordinates, path + 'pointcloud.ply')
-        print('\n Done \n')
-        show3d(path)
-"""
+    #if (cv2.waitKey(33) == ord('a')):
+    coordinates = depth_map(disparity_map, rightFrame)
+    print('\n Creating the output file... \n')
+    create_output(coordinates, path + 'pointcloud.ply')
+    print('\n Done \n')
+    show3d(path)
 
 
-def main(pars):
-    cv2.VideoCapture(2 + cv2.CAP_DSHOW).release()
-    cv2.VideoCapture(1 + cv2.CAP_DSHOW).release()
-    cap_l = cv2.VideoCapture(2 + cv2.CAP_DSHOW)
-    cap_r = cv2.VideoCapture(1 + cv2.CAP_DSHOW)
 
-    # cap_l = detect.cam_L
-    # cap_r = detect.cam_R
-
-    # cap_l = cv2.VideoCapture(args.left_source)
-    # cap_r = cv2.VideoCapture(args.right_source)
+def main(parser):
+    cap_l = cv2.VideoCapture('output_L.avi')
+    cap_r = cv2.VideoCapture('output_R.avi')
 
     while True:
         ret1, lFrame = cap_l.read()
         ret2, rFrame = cap_r.read()
         if (ret2):
-            showbyframe(args, lFrame, rFrame)
-    cv2.destroyAllWindows()
+            showbyframe(parser, lFrame, rFrame)
 
 
 if __name__ == '__main__':
