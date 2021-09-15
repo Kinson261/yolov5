@@ -232,3 +232,4 @@ yolov5s6.pt
 stereo2PCL/yolov5s.pt
 video/right_out.avi
 video/left_out.avi
+/runs/
