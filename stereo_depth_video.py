@@ -117,7 +117,7 @@ def dispar_map(imgL, imgR):
     right_matcher = cv2.ximgproc.createRightMatcher(left_matcher)
     # FILTER Parameters
     lmbda =7000
-    sigma = 1.9
+    sigma = 2.3
 
     wls_filter = cv2.ximgproc.createDisparityWLSFilter(matcher_left=left_matcher)
     wls_filter.setLambda(lmbda)
@@ -167,7 +167,7 @@ def showbyframe(args_s, leftFrame, rightFrame):
     gray_left = cv2.cvtColor(leftFrame, cv2.COLOR_BGR2GRAY)
     gray_right = cv2.cvtColor(rightFrame, cv2.COLOR_BGR2GRAY)
 
-    disparity_map = -dispar_map(gray_left, gray_right)
+    disparity_map = dispar_map(gray_left, gray_right)
 
     cv2.imshow('left_Webcam', leftFrame)
     cv2.imshow('right_Webcam', rightFrame)
