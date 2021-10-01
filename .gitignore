@@ -233,3 +233,9 @@ stereo2PCL/yolov5s.pt
 video/right_out.avi
 video/left_out.avi
 /runs/
+disparity_SGBM_norm.png
+disparity_SGBM_norm.png
+output_L.avi
+output_l.jpg
+output_R.avi
+output_L.avi
