@@ -194,7 +194,7 @@ def coords_mouse_disp(event, x, y, flags, param):
             for v in range(-1, 2):
                 average += displ[y + u, x + v]
         average = average / 9
-        Distance = (1 * average ** (3) - 10 * average ** (2) + 1 * average) / 47755269
+        Distance = (23 * FOCAL_LENGTH)/(average)
         Distance = np.around(Distance * 0.01, decimals=2)
         print('Distance: ' + str(Distance) + ' m')
 
