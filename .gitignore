@@ -246,3 +246,6 @@ output_R.avi
 output_L.avi
 output_L.avi
 output_R.avi
+stereo2PCL/output/pointcloud.ply
+stereo2PCL/outputpointcloud.ply
+stereo2PCL/output/disparity_image.jpg
