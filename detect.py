@@ -1,4 +1,3 @@
-# YOLOv5 🚀 by Ultralytics, GPL-3.0 license
 """
 Run inference on images, videos, directories, streams, etc.
 
@@ -8,7 +7,6 @@ Usage:
 
 import argparse
 import os
-import subprocess
 import sys
 import time
 from pathlib import Path
@@ -18,26 +16,24 @@ import numpy as np
 import torch
 import torch.backends.cudnn as cudnn
 
-FILE = Path(__file__).absolute()
-sys.path.append(FILE.parents[0].as_posix())  # add yolov5/ to path
-
 from models.experimental import attempt_load
 from utils.datasets import LoadStreams, LoadImages
 from utils.general import check_img_size, check_requirements, check_imshow, colorstr, is_ascii, non_max_suppression, \
     apply_classifier, scale_coords, xyxy2xywh, strip_optimizer, set_logging, increment_path, save_one_box
 from utils.plots import Annotator, colors
 from utils.torch_utils import select_device, load_classifier, time_sync
-from PIL import Image
+
+FILE = Path(__file__).absolute()
+sys.path.append(FILE.parents[0].as_posix())  # add yolov5/ to path
 
 camL = cv2.VideoCapture(2 + cv2.CAP_DSHOW)
 camR = cv2.VideoCapture(1 + cv2.CAP_DSHOW)
 
 
-
 def parse_opt():
     parser = argparse.ArgumentParser()
     parser.add_argument('--weights', nargs='+', type=str, default='best.pt', help='model.pt path(s)')
-    parser.add_argument('--source', type=str, default='2', help='file/dir/URL/glob, 0 for webcam')
+    parser.add_argument('--source', type=str, default='1', help='file/dir/URL/glob, 0 for webcam')
     parser.add_argument('--imgsz', '--img', '--img-size', nargs='+', type=int, default=[640], help='inference size h,w')
     parser.add_argument('--conf-thres', type=float, default=0.25, help='confidence threshold')
     parser.add_argument('--iou-thres', type=float, default=0.45, help='NMS IoU threshold')
@@ -79,8 +75,8 @@ def parse_opt_depth():
 
 @torch.no_grad()
 def run(weights='yolov5s.pt',  # model.pt path(s)
-        source='2',  # file/dir/URL/glob, 0 for webcam
-        source2='1',  # file/dir/URL/glob, 0 for webcam
+        source='1',  # file/dir/URL/glob, 0 for webcam
+        source2='2',  # file/dir/URL/glob, 0 for webcam
         imgsz=640,  # inference size (pixels)
         conf_thres=0.25,  # confidence threshold
         iou_thres=0.45,  # NMS IOU threshold
@@ -164,7 +160,6 @@ def run(weights='yolov5s.pt',  # model.pt path(s)
         cudnn.benchmark = True  # set True to speed up constant image size inference
         dataset = LoadStreams(source, img_size=imgsz, stride=stride, auto=pt)
         dataset2 = LoadStreams(source2, img_size=imgsz, stride=stride, auto=pt)
-
 
         bs = len(dataset)  # batch_size
     else:
@@ -267,7 +262,7 @@ def run(weights='yolov5s.pt',  # model.pt path(s)
                     x2 = float(xyxy[2].item())
                     y2 = float(xyxy[3].item())
 
-                    mass_center = np.array([(x1+x2)/2, (y1+y2)/2])
+                    mass_center = np.array([(x1 + x2) / 2, (y1 + y2) / 2])
 
                     confidence_score = conf
                     class_index = cls
@@ -276,44 +271,38 @@ def run(weights='yolov5s.pt',  # model.pt path(s)
                     print('x1= ', x1, '\ty1= ', y1, '\tx2=  ', x2, '\ty2= ', y2, '\tconfidence=', confidence_score, '\tclass index=', class_index,
                           '\tobject=', object_name, '\n\n')
 
-                    if (object_name == "apple" and float(confidence_score) >= 0.65):
-                        if x1 >= 0.35 * float(opt.imgsz[0]) and x1 <= float(opt.imgsz[0]) - 0.35 * float(opt.imgsz[1]) :
-                            if y1 >= 0.2 * float(opt.imgsz[1] and y1 <= float(opt.imgsz[1]) - 0.2 * float(opt.imgsz[1])):
-
-                                #camL.release()
-                                #camR.release()
+                    if (object_name == "apple" and float(confidence_score) >= 0.50):
+                        if x1 >= 0.55 * float(opt.imgsz[0]):
+                            if y1 >= 0.15 * float(opt.imgsz[1] and y1 <= float(opt.imgsz[1]) - 0.15 * float(opt.imgsz[1])):
 
                                 capture_duration = 5
                                 fourcc = cv2.VideoWriter_fourcc(*'XVID')
 
-                                out_L = cv2.VideoWriter('output_L.avi',fourcc, 20.0, (640,480))
-                                out_R = cv2.VideoWriter('output_R.avi',fourcc, 20.0, (640,480))
-
                                 start_time = time.time()
-                                while (int(time.time() - start_time) < capture_duration):
+                                while int(time.time() - start_time) < capture_duration:
                                     ret1, frame_L = camL.read()
                                     ret2, frame_R = camR.read()
+
                                     if ret2 == True:
+                                        print('Saving Videos...')
+                                        out_L = cv2.VideoWriter('output_L.avi', fourcc, 20.0, (640, 480))
+                                        out_R = cv2.VideoWriter('output_R.avi', fourcc, 20.0, (640, 480))
                                         out_L.write(frame_L)
                                         out_R.write(frame_R)
-                                        #cv2.imshow('frame_L', frame_L)
-                                        #cv2.imshow('frame_R', frame_R)
+                                        cv2.imwrite('output_l.jpg', frame_L)
+                                        cv2.imwrite('output_r.jpg', frame_R)
+                                        print('Videos saved successfully!')
+                                        out_L.release()
+                                        out_R.release()
                                     else:
                                         break
-                                    out_L.release()
-                                    out_R.release()
-
-                                subprocess.call('stereo_depth_video.py --calibration_file configs/stereo.yml --left_source output_L.avi --right_source '
-                                                'output_R.avi --pointcloud_dir stereo2PCL/output', shell=True)
-
-                                #camL.open(1)
-                                #camR.open(2)
-
+                                    os.system('python stereo_depth_video.py --calibration_file configs/stereo.yml --left_source output_L.avi  '
+                                              '--right_source output_R.avi --pointcloud_dir stereo2PCL/output')
 
                             else:
                                 pass
 
-            # ====================================================================================================================================================
+            # ========================================================================================================================================
 
             # Print time (inference + NMS)
             print(f'{s}Done. ({t2 - t1:.3f}s)')
@@ -358,10 +347,10 @@ def run(weights='yolov5s.pt',  # model.pt path(s)
 def main(opt, opt2):
     print(colorstr('detect: ') + ', '.join(f'{k}={v}' for k, v in vars(opt).items()))
     check_requirements(exclude=('tensorboard', 'thop'))
-    x1, y1, x2, y2, confidence_score, class_index, object_name, dataset, dataset2, mass_center = run(**vars(opt))
+    run(**vars(opt))
+
 
 if __name__ == "__main__":
     opt = parse_opt()
     opt2 = parse_opt_depth()
     main(opt, opt2)
-
