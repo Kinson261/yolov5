@@ -88,36 +88,39 @@ def depth_map(dispMap, orignal_pic):
             YY = (ZZ / FOCAL_LENGTH) * Yoffset
             XX = (ZZ / FOCAL_LENGTH) * Xoffset
             coordinates += [[XX, YY, ZZ, orignal_pic[r][c][2], orignal_pic[r][c][1], orignal_pic[r][c][0]]]
-    depthmap = plt.imshow(depth, cmap='jet_r')
+
+    fig = plt.figure()
+    fig.add_subplot(111)
+    fig.canvas.mpl_connect('button_press_event', coords_mouse_disp_PLT)
+    plt.imshow(depth, cmap='jet_r')
+    plt.show()
     return coordinates
 
 
 def dispar_map(imgL, imgR):
     """ Depth map calculation. Works with SGBM and WLS. Need rectified images, returns depth map ( rigth to left disparity ) """
     # SGBM Parameters -----------------
-    window_size = 9  # wsize default 3; 5; 7 for SGBM reduced size image; 15 for SGBM full size image (1300px and above); 5 Works nicely
+    window_size = 7  # wsize default 3; 5; 7 for SGBM reduced size image; 15 for SGBM full size image (1300px and above)
     min_disp = 2
-    num_disp = 130 - min_disp
 
     left_matcher = cv2.StereoSGBM_create(
         minDisparity=min_disp,
-        numDisparities=num_disp,  # max_disp has to be dividable by 16 f. E. HH 192, 256
+        numDisparities=192,  # max_disp has to be dividable by 16 f. E. HH 192, 256
         blockSize=window_size,
-        P1=8 * 3 * window_size,
-        # wsize default 3; 5; 7 for SGBM reduced size image; 15 for SGBM full size image (1300px and above); 5 Works nicely
-        P2=32 * 3 * window_size,
-        disp12MaxDiff=5,
-        uniquenessRatio=10,
-        speckleWindowSize=200,
-        speckleRange=128,
+        P1=8 * 3 * window_size ** 2,
+        P2=32 * 3 * window_size ** 2,
+        disp12MaxDiff=4,
+        uniquenessRatio=8,
+        speckleWindowSize=100,
+        speckleRange=2,
         preFilterCap=63,
-        mode=cv2.STEREO_SGBM_MODE_SGBM_3WAY
+        mode=cv2.STEREO_SGBM_MODE_HH
     )
 
     right_matcher = cv2.ximgproc.createRightMatcher(left_matcher)
     # FILTER Parameters
-    lmbda =7000
-    sigma = 2.3
+    lmbda = 20000
+    sigma = 2.5
 
     wls_filter = cv2.ximgproc.createDisparityWLSFilter(matcher_left=left_matcher)
     wls_filter.setLambda(lmbda)
@@ -173,10 +176,8 @@ def showbyframe(args_s, leftFrame, rightFrame):
     cv2.imshow('right_Webcam', rightFrame)
     cv2.imshow('disparity', disparity_map)
 
-    # Mouse click on every window
-    cv2.setMouseCallback("left_Webcam", coords_mouse_disp, leftFrame)
-    cv2.setMouseCallback("right_Webcam", coords_mouse_disp, rightFrame)
-    cv2.setMouseCallback("disparity", coords_mouse_disp, disparity_map)
+    # Mouse click on disparity window
+    cv2.setMouseCallback("disparity", coords_mouse_disp_CV2, disparity_map)
 
     path = args_s.pointcloud_dir
     cv2.imwrite(os.path.join(path, 'disparity_image.jpg'), disparity_map)
@@ -184,31 +185,40 @@ def showbyframe(args_s, leftFrame, rightFrame):
     print('\n Creating the output file... \n')
     create_output(coordinates, path + 'pointcloud.ply')
     print('\n Done \n')
-    show3d(path)
+    # show3d(path)
 
 
-def coords_mouse_disp(event, x, y, flags, param):
+def coords_mouse_disp_CV2(event, x, y, flags, param):
     if event == cv2.EVENT_LBUTTONDOWN:
-        average = 0
-        for u in range(-1, 2):
-            for v in range(-1, 2):
-                average += displ[y + u, x + v]
-        average = average / 9
-        Distance = (23 * FOCAL_LENGTH)/(average)
+        print('\nx = ', x, '\ty = ', y)
+        Distance = (22 * FOCAL_LENGTH) / (displ[y, x])
         Distance = np.around(Distance * 0.01, decimals=2)
         print('Distance: ' + str(Distance) + ' m')
 
 
-def main(parser):
-    cap_l = cv2.VideoCapture('output_L.avi')
-    cap_r = cv2.VideoCapture('output_R.avi')
-    #cap_l = cv2.VideoCapture(1 + cv2.CAP_DSHOW)
-    #cap_r = cv2.VideoCapture(2 + cv2.CAP_DSHOW)
+def coords_mouse_disp_PLT(event):
+    global ix, iy
+    ix, iy = event.xdata, event.ydata
+    print('x = ', int(ix), 'y = ', int(iy))
+    Distance = (CAMERA_DISTANCE * FOCAL_LENGTH) / (displ[int(iy), int(ix)])
+    Distance = np.around(Distance * 0.01, decimals=2)
+    print('Distance: ' + str(Distance) + ' m')
 
-    while True:
-        ret1, lFrame = cap_l.read()
-        ret2, rFrame = cap_r.read()
-        showbyframe(parser, lFrame, rFrame)
+
+def main(parser):
+    '''
+        cap_l = cv2.VideoCapture('output_L.jpg')
+        cap_r = cv2.VideoCapture('output_R.jpg')
+        while True:
+            ret1, lFrame = cap_l.read()
+            ret2, rFrame = cap_r.read()
+            showbyframe(parser, lFrame, rFrame)
+    '''
+
+    cap_l = cv2.imread('output_l.jpg')
+    cap_r = cv2.imread('output_r.jpg')
+
+    showbyframe(parser, cap_l, cap_r)
 
 
 if __name__ == '__main__':
