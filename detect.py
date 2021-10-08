@@ -26,8 +26,8 @@ from utils.torch_utils import select_device, load_classifier, time_sync
 FILE = Path(__file__).absolute()
 sys.path.append(FILE.parents[0].as_posix())  # add yolov5/ to path
 
-camL = cv2.VideoCapture(2 + cv2.CAP_DSHOW)
-camR = cv2.VideoCapture(1 + cv2.CAP_DSHOW)
+camL = cv2.VideoCapture(1 + cv2.CAP_DSHOW)
+camR = cv2.VideoCapture(2 + cv2.CAP_DSHOW)
 
 
 def parse_opt():
@@ -59,18 +59,6 @@ def parse_opt():
     opt = parser.parse_args()
     opt.imgsz *= 2 if len(opt.imgsz) == 1 else 1  # expand
     return opt
-
-
-def parse_opt_depth():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--calibration_file', type=str,
-                        default="C:\\Users\\Clark\\Documents\\GitHub\\yolov5\\openCVStereo\\stereo2PCL\\configs\\stereo.yml")
-    parser.add_argument('--left_source', default="2")
-    parser.add_argument('--right_source', default="1")
-    parser.add_argument('--pointcloud_dir', type=str, default="C:\\Users\\Clark\\Documents\\GitHub\\yolov5\\openCVStereo\\stereo2PCL\\output\\")
-
-    opt2 = parser.parse_args()
-    return opt2
 
 
 @torch.no_grad()
@@ -271,8 +259,8 @@ def run(weights='yolov5s.pt',  # model.pt path(s)
                     print('x1= ', x1, '\ty1= ', y1, '\tx2=  ', x2, '\ty2= ', y2, '\tconfidence=', confidence_score, '\tclass index=', class_index,
                           '\tobject=', object_name, '\n\n')
 
-                    if (object_name == "apple" and float(confidence_score) >= 0.50):
-                        if x1 >= 0.55 * float(opt.imgsz[0]):
+                    if object_name == "apple" and float(confidence_score) >= 0.50:
+                        if x1 >= 0.45 * float(opt.imgsz[0]):
                             if y1 >= 0.15 * float(opt.imgsz[1] and y1 <= float(opt.imgsz[1]) - 0.15 * float(opt.imgsz[1])):
 
                                 capture_duration = 5
@@ -296,8 +284,8 @@ def run(weights='yolov5s.pt',  # model.pt path(s)
                                         out_R.release()
                                     else:
                                         break
-                                    os.system('python stereo_depth_video.py --calibration_file configs/stereo.yml --left_source output_L.avi  '
-                                              '--right_source output_R.avi --pointcloud_dir stereo2PCL/output')
+                                    os.system('python stereo_depth_video.py --calibration_file configs/stereo.yml --left_source output_L.jpg  '
+                                              '--right_source output_R.jpg --pointcloud_dir stereo2PCL/output')
 
                             else:
                                 pass
@@ -344,7 +332,7 @@ def run(weights='yolov5s.pt',  # model.pt path(s)
     return x1, y1, x2, y2, confidence_score, class_index, object_name, dataset, dataset2, mass_center
 
 
-def main(opt, opt2):
+def main(opt):
     print(colorstr('detect: ') + ', '.join(f'{k}={v}' for k, v in vars(opt).items()))
     check_requirements(exclude=('tensorboard', 'thop'))
     run(**vars(opt))
@@ -352,5 +340,4 @@ def main(opt, opt2):
 
 if __name__ == "__main__":
     opt = parse_opt()
-    opt2 = parse_opt_depth()
-    main(opt, opt2)
+    main(opt)
