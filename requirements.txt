@@ -31,4 +31,3 @@ thop~=0.0.31.post2005241907
 
 requests~=2.26.0
 open3d~=0.13.0
-openpyxl~=3.0.9
