@@ -40,7 +40,7 @@ X_A = Q[0][3]  # C_X CAMERA L
 X_B = K1[0][2]  # C_X CAMERA R
 Y = Q[1][3]  # C_Y CAMERA L
 DOFFS = X_B - X_A
-CAMERA_DISTANCE = 20
+CAMERA_DISTANCE = 0.2
 # =====================================
 # Function declarations
 ndisp = 64
@@ -70,12 +70,13 @@ def create_output(vertices, filename):
 
 
 def depth_map(dispMap, orignal_pic):
-    print("Calculating depth....")
+    print('\n', time.strftime('%H:%M:%S'), end=' : ')
+    print("Calculating depth ...")
     depth = np.zeros(dispMap.shape)
     coordinates = []
     h, w = dispMap.shape
     h1, w1, _ = orignal_pic.shape
-    print(h, w, "-----", h1, w1)
+    print("", h, ' x ', w, " - - - - - > ", h1, ' x ', w1)
 
     for r in range(0, h):
         for c in range(0, w):
@@ -88,6 +89,9 @@ def depth_map(dispMap, orignal_pic):
             YY = (ZZ / FOCAL_LENGTH) * Yoffset
             XX = (ZZ / FOCAL_LENGTH) * Xoffset
             coordinates += [[XX, YY, ZZ, orignal_pic[r][c][2], orignal_pic[r][c][1], orignal_pic[r][c][0]]]
+
+    print('\n', time.strftime('%H:%M:%S'), end=' : ')
+    print("Displaying depth map ...")
 
     fig = plt.figure()
     fig.add_subplot(111)
@@ -119,8 +123,8 @@ def dispar_map(imgL, imgR):
 
     right_matcher = cv2.ximgproc.createRightMatcher(left_matcher)
     # FILTER Parameters
-    lmbda = 20000
-    sigma = 2.5
+    lmbda = 2200
+    sigma = 2.1
 
     wls_filter = cv2.ximgproc.createDisparityWLSFilter(matcher_left=left_matcher)
     wls_filter.setLambda(lmbda)
@@ -161,19 +165,32 @@ def showbyframe(args_s, leftFrame, rightFrame):
 
     # ==============================================
     # rectified images
-    leftMapX, leftMapY = cv2.initUndistortRectifyMap(K1, D1, R1, P1, (int(widthL * 1.), int(heightL * 1.)), cv2.CV_32FC1)
-    left_rectified = cv2.remap(ResizedleftFrame, leftMapX, leftMapY, cv2.INTER_AREA, cv2.BORDER_CONSTANT)
-    rightMapX, rightMapY = cv2.initUndistortRectifyMap(K2, D2, R2, P2, (int(widthR * 1.), int(heightR * 1.)), cv2.CV_32FC1)
-    right_rectified = cv2.remap(ResizedrightFrame, rightMapX, rightMapY, cv2.INTER_AREA, cv2.BORDER_CONSTANT)
+    new_camera_matrix_l, roi_l = cv2.getOptimalNewCameraMatrix(K1, D1, (widthL, heightL), 1, (widthL, heightL))
+    left_rectified = cv2.undistort(ResizedleftFrame, K1, D1, None, new_camera_matrix_l)
+    new_camera_matrix_r, roi_r = cv2.getOptimalNewCameraMatrix(K2, D2, (widthR, heightR), 1, (widthR, heightR))
+    right_rectified = cv2.undistort(ResizedrightFrame, K2, D2, None, new_camera_matrix_r)
+
+    # leftMapX, leftMapY = cv2.initUndistortRectifyMap(K1, D1, R1, P1, (int(widthL * 1.), int(heightL * 1.)), cv2.CV_32FC1)
+    # left_rectified = cv2.remap(ResizedleftFrame, leftMapX, leftMapY, cv2.INTER_AREA, cv2.BORDER_CONSTANT)
+    # rightMapX, rightMapY = cv2.initUndistortRectifyMap(K2, D2, R2, P2, (int(widthR * 1.), int(heightR * 1.)), cv2.CV_32FC1)
+    # right_rectified = cv2.remap(ResizedrightFrame, rightMapX, rightMapY, cv2.INTER_AREA, cv2.BORDER_CONSTANT)
 
     # We need grayscale for disparity map.
-    gray_left = cv2.cvtColor(leftFrame, cv2.COLOR_BGR2GRAY)
-    gray_right = cv2.cvtColor(rightFrame, cv2.COLOR_BGR2GRAY)
+    gray_left = cv2.cvtColor(left_rectified, cv2.COLOR_BGR2GRAY)
+    gray_right = cv2.cvtColor(right_rectified, cv2.COLOR_BGR2GRAY)
 
     disparity_map = dispar_map(gray_left, gray_right)
 
+    print('\n', time.strftime('%H:%M:%S'), end=' : ')
+    print("Displaying left frame ...")
     cv2.imshow('left_Webcam', leftFrame)
+
+    print('\n', time.strftime('%H:%M:%S'), end=' : ')
+    print("Displaying right frame ...")
     cv2.imshow('right_Webcam', rightFrame)
+
+    print('\n', time.strftime('%H:%M:%S'), end=' : ')
+    print("Displaying disparity map ...")
     cv2.imshow('disparity', disparity_map)
 
     # Mouse click on disparity window
@@ -182,38 +199,41 @@ def showbyframe(args_s, leftFrame, rightFrame):
     path = args_s.pointcloud_dir
     cv2.imwrite(os.path.join(path, 'disparity_image.jpg'), disparity_map)
     coordinates = depth_map(disparity_map, leftFrame)
-    print('\n Creating the output file... \n')
+    print('\n', time.strftime('%H:%M:%S'), end=' : ')
+    print('Creating the output file... \n')
     create_output(coordinates, path + 'pointcloud.ply')
-    print('\n Done \n')
+    print('\n', time.strftime('%H:%M:%S'), end=' : ')
+    print('Done')
     # show3d(path)
 
 
 def coords_mouse_disp_CV2(event, x, y, flags, param):
     if event == cv2.EVENT_LBUTTONDOWN:
-        print('\nx = ', x, '\ty = ', y)
+        # print('\nx = ', x, '\ty = ', y)
+        print("\n\t\t\tx = {:^7},\ty = {:^7}".format(x, y))
         Distance = (22 * FOCAL_LENGTH) / (displ[y, x])
-        Distance = np.around(Distance * 0.01, decimals=2)
-        print('Distance: ' + str(Distance) + ' m')
+        Distance = np.around(Distance, decimals=1)
+        print('\t\t\tDistance: ' + str(Distance) + ' cm')
 
 
 def coords_mouse_disp_PLT(event):
     global ix, iy
     ix, iy = event.xdata, event.ydata
-    print('x = ', int(ix), 'y = ', int(iy))
+    print('\n\t\t\tx = ', int(ix), 'y = ', int(iy))
     Distance = (CAMERA_DISTANCE * FOCAL_LENGTH) / (displ[int(iy), int(ix)])
-    Distance = np.around(Distance * 0.01, decimals=2)
-    print('Distance: ' + str(Distance) + ' m')
+    Distance = np.around(Distance, decimals=1)
+    print('\t\t\tDistance: ' + str(Distance) + ' cm')
 
 
 def main(parser):
-    '''
+    """
         cap_l = cv2.VideoCapture('output_L.jpg')
         cap_r = cv2.VideoCapture('output_R.jpg')
         while True:
             ret1, lFrame = cap_l.read()
             ret2, rFrame = cap_r.read()
             showbyframe(parser, lFrame, rFrame)
-    '''
+    """
 
     cap_l = cv2.imread('output_l.jpg')
     cap_r = cv2.imread('output_r.jpg')
